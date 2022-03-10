@@ -356,9 +356,9 @@
                         <p>You are viewing data for {{ $locations[$currentLocation] }}</p>
                     </div>
                     <div>
-                        <div class="mx-auto px-4 sm:px-6 md:px-8">
-                            <div wire:loading>
-                                Carregando...
+                        <div class="mx-auto">
+                            <div class="px-4 sm:px-6 md:px-8" wire:loading>
+                                Loading...
                             </div>
                             <div wire:loading.remove>
                                 <div id='dataPlot'></div>
@@ -396,14 +396,20 @@
         };
         var data = [newDeathsTrace, predictedDeathsTrace]
 
+        var layout = {
+            showlegend: true,
+            legend: {
+                orientation: 'h'
+            }
+        };
 
         document.addEventListener("DOMContentLoaded", () => {
             console.log('imrege')
-            Plotly.newPlot('dataPlot', data);
+            Plotly.newPlot('dataPlot', data, layout, {responsive: true});
 
             window.Livewire.on('dataUpdated', data => {
                 console.log(JSON.parse(data));
-                Plotly.newPlot('dataPlot', JSON.parse(data));
+                Plotly.newPlot('dataPlot', JSON.parse(data), layout, {responsive: true});
             })
         });
 
