@@ -14,6 +14,10 @@ class Model extends EloquentModel
     public $incrementing = false;
     protected $guarded = [];
 
+    protected $casts = [
+        'metadata' => 'array'
+    ];
+
     protected static function booted()
     {
         static::creating(function (Model $model) {

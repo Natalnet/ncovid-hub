@@ -14,6 +14,7 @@ class Create extends Component
     public $location;
     public $description;
     public $file;
+    public $metadata;
 
     public function store()
     {
@@ -21,16 +22,24 @@ class Create extends Component
             'location' => 'required|string|size:2',
             'description' => 'required|string|max:255',
             'file' => 'required|file|max:20480|mimes:hdf', // 20MB Max
+            'metadata' => 'required|json'
         ]);
 
-        $fileName = $this->file->getClientOriginalName();
+        $fileId = Str::uuid();
+        $fileName = $fileId . '.h5';
+        $metadata = json_decode($this->metadata, true);
+        $metadata['folder_configs'] = [
+            'model_path_remote' => 'http://ncovid.natalnet.br/storage/models/'
+        ];
+        $metadata['model_configs']['model_id'] = $fileId;
 
         if($this->file->storeAs('public/models', $fileName)){
-            $model = Model::updateOrCreate(
-                ['location' => $this->location],
+            $model = Model::create(
                 [
+                    'location' => $this->location,
                     'description' => $this->description,
-                    'file_name' => $fileName
+                    'file_name' => $fileName,
+                    'metadata' => $metadata
                 ]
             );
 

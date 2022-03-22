@@ -30,3 +30,4 @@ Route::get('/data-sources/{source}/parse', \App\Http\Livewire\DataSources\Parse:
 
 Route::get('/models', \App\Http\Livewire\Models\Index::class)->name('models.index');
 Route::get('/models/create', \App\Http\Livewire\Models\Create::class)->name('models.create');
+Route::get('/models/{model}', \App\Http\Livewire\Models\Show::class)->name('models.show');

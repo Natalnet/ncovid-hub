@@ -2,12 +2,15 @@
 
 namespace App\Http\Livewire;
 
+use App\Models\Model;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class Dashboard extends Component
 {
     public $currentLocation = 'brl:rn';
+    public $currentModel;
     public $dateBegin = '2020-04-01';
     public $dateEnd = '2022-02-28';
     public $predictDateBegin = '2020-04-08';
@@ -52,25 +55,44 @@ class Dashboard extends Component
 
     public function mount()
     {
+        $this->dateEnd = now()->subDays(2)->format('Y-m-d');
+        $this->predictDateEnd = now()->addDays(7)->format('Y-m-d');
+        $this->useFirstAvailableModel();
+        $this->loadData();
+    }
+
+    private function availableModels()
+    {
+        $location = Str::of($this->currentLocation)->after(':')->upper();
+        return Model::where('location', $location)->latest()->get()->flatMap(function ($model) {
+            return [$model->id => $model->description];
+        });
+    }
+
+    private function useFirstAvailableModel()
+    {
+        $this->currentModel = Model::where('location', Str::of($this->currentLocation)->after(':')->upper())->latest()->first();
+    }
+
+    public function setSpecificModel($modelId)
+    {
+        $this->currentModel = Model::findOrFail($modelId);
         $this->loadData();
     }
 
     protected function loadData() {
         $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
-        $predictionResponse = Http::get('http://ncovid.natalnet.br/predictor/lstm/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newCases:newDeaths/begin/'. $this->predictDateBegin .'/end/'. $this->predictDateEnd);
+        $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newCases:newDeaths/begin/'. $this->predictDateBegin .'/end/'. $this->predictDateEnd . '/';
+
+        $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
+            'metadata' => json_encode($this->currentModel->metadata)
+        ]);
 
         $this->dates = collect($dataResponse->json())->pluck('date')->skip(6)->values()->toArray();
         $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
 
         $this->predictedDates = collect($predictionResponse->json())->pluck('date')->skip(6)->values()->toArray();
         $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->sliding(7)->map->average()->toArray();
-    }
-
-    public function setCurrentLocation($newLocation)
-    {
-        $this->currentLocation = $newLocation;
-
-        $this->loadData();
 
         $data = [
             [
@@ -98,8 +120,18 @@ class Dashboard extends Component
         $this->emit('dataUpdated', json_encode($data));
     }
 
+    public function setCurrentLocation($newLocation)
+    {
+        $this->currentLocation = $newLocation;
+        $this->useFirstAvailableModel();
+
+        $this->loadData();
+    }
+
     public function render()
     {
-        return view('livewire.dashboard');
+        return view('livewire.dashboard', [
+            'availableModels' => $this->availableModels()
+        ]);
     }
 }
