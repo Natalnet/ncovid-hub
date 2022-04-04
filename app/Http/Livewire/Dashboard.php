@@ -113,7 +113,7 @@ class Dashboard extends Component
                     'color' => 'rgb(59,196,201)',
                     'width' => 2
                 ],
-                'name' => 'New Cases'
+                'name' => 'Predicted New Deaths'
             ]
         ];
 
