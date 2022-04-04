@@ -82,7 +82,7 @@ class Dashboard extends Component
 
     protected function loadData() {
         $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
-        $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newCases:newDeaths/begin/'. $this->predictDateBegin .'/end/'. $this->predictDateEnd . '/';
+        $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths:newCases/begin/'. $this->predictDateBegin .'/end/'. $this->predictDateEnd . '/';
 
         $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
             'metadata' => json_encode($this->currentModel->metadata)
