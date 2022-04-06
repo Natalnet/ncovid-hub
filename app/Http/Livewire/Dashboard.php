@@ -82,19 +82,19 @@ class Dashboard extends Component
 
     protected function loadData() {
         # repo the model was trained for
-        $repo = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['repo']
+        $repo = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['repo'];
         # data from where the model was trained for
-        $path = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['path']
+        $path = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['path'];
         # features the model accept as input
-        $inputFeatures = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['input_features']
+        $inputFeatures = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['input_features'];
         # features the model returns as output. feature returned from $predictionEndpointUrl
-        $outputFeatures = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['output_features']
+        $outputFeatures = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['output_features'];
         # initial date the model was trained for
-        $this->dateBegin = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['date_begin']
+        $this->dateBegin = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['date_begin'];
         # final date the model was trained for (last trained sample. beyond this date the model gives predictions)
-        $this->dateEnd = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['date_end']
+        $this->dateEnd = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['date_end'];
         # days beyond date_end that the model can gives predictions [dateEnd+windowSize]
-        $windowSize = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['window_size']
+        $windowSize = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['window_size'];
 
         # data to plot
         $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:'. $outputFeatures .'/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
