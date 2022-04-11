@@ -3,6 +3,7 @@
 namespace App\Http\Livewire;
 
 use App\Models\Model;
+use App\Services\DataStatsService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -53,6 +54,9 @@ class Dashboard extends Component
     public $predictedDates;
     public $predictedDeaths;
 
+    public $timeseriesChartData;
+    public $weeklyCumulativeComparisonChartData;
+
     public function mount()
     {
         $this->dateEnd = now()->subDays(2)->format('Y-m-d');
@@ -88,13 +92,14 @@ class Dashboard extends Component
             'metadata' => json_encode($this->currentModel->metadata)
         ]);
 
+        // skip first 6 days in order to calculate 7-days moving average
         $this->dates = collect($dataResponse->json())->pluck('date')->skip(6)->values()->toArray();
         $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
 
         $this->predictedDates = collect($predictionResponse->json())->pluck('date')->skip(6)->values()->toArray();
         $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->sliding(7)->map->average()->toArray();
 
-        $data = [
+        $this->timeseriesChartData = [
             [
                 'x' => $this->dates,
                 'y' => $this->newDeaths,
@@ -117,7 +122,26 @@ class Dashboard extends Component
             ]
         ];
 
-        $this->emit('dataUpdated', json_encode($data));
+        $dataStats = new DataStatsService('p971074907', $this->currentLocation);
+        $weeklyCumulativeComparisonData = $dataStats->weeklyCumulativeComparison('newDeaths', now()->subDay()->toDateString());
+
+        $this->weeklyCumulativeComparisonChartData = [
+            [
+                'type' => 'bar',
+                'x' => [$weeklyCumulativeComparisonData['first']['cumulative'], $weeklyCumulativeComparisonData['last']['cumulative']],
+                'y' => [
+                    $weeklyCumulativeComparisonData['first']['start']->toDateString() . '<br>to ' . $weeklyCumulativeComparisonData['first']['end']->toDateString(),
+                    $weeklyCumulativeComparisonData['last']['start']->toDateString() . '<br>to ' . $weeklyCumulativeComparisonData['last']['end']->toDateString()
+                ],
+                'marker' => [
+                    'color' => 'rgba(202,66,59,1)',
+                ],
+                'name' => 'Cumulative new deaths in a week',
+                'orientation' => 'h'
+            ]
+        ];
+
+        $this->emit('dataUpdated', json_encode([$this->timeseriesChartData, $this->weeklyCumulativeComparisonChartData]));
     }
 
     public function setCurrentLocation($newLocation)
