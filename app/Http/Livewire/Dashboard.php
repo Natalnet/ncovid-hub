@@ -67,7 +67,11 @@ class Dashboard extends Component
 
     private function availableModels()
     {
-        $location = Str::of($this->currentLocation)->after(':')->upper();
+        if ($this->currentLocation !== 'brl') {
+            $location = Str::of($this->currentLocation)->after(':')->upper();
+        } else {
+            $location = 'BR';
+        }
         return Model::where('location', $location)->latest()->get()->flatMap(function ($model) {
             return [$model->id => $model->description];
         });
@@ -130,8 +134,8 @@ class Dashboard extends Component
                 'type' => 'bar',
                 'x' => [$weeklyCumulativeComparisonData['first']['cumulative'], $weeklyCumulativeComparisonData['last']['cumulative']],
                 'y' => [
-                    $weeklyCumulativeComparisonData['first']['start']->toDateString() . '<br>to ' . $weeklyCumulativeComparisonData['first']['end']->toDateString(),
-                    $weeklyCumulativeComparisonData['last']['start']->toDateString() . '<br>to ' . $weeklyCumulativeComparisonData['last']['end']->toDateString()
+                    $weeklyCumulativeComparisonData['first']['start']->toFormattedDateString() . '<br>to ' . $weeklyCumulativeComparisonData['first']['end']->toFormattedDateString(),
+                    $weeklyCumulativeComparisonData['last']['start']->toFormattedDateString() . '<br>to ' . $weeklyCumulativeComparisonData['last']['end']->toFormattedDateString()
                 ],
                 'marker' => [
                     'color' => 'rgba(202,66,59,1)',
