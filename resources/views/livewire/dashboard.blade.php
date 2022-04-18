@@ -383,6 +383,18 @@
                                             <button wire:click="setSpecificModel('{{ $modelKey }}')"
                                                     @click="open = false"
                                                     @class(['block w-full text-left px-4 py-2 text-sm', 'bg-gray-100 text-gray-900' => $modelKey == $currentModel->id, 'text-gray-700' => $modelKey != $currentModel->id])
+                                                    role="menuitem" tabindex="-1" id="model-menu-item-{{ $modelKey }}">{{$modelDescription}}</button>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <div x-show="open" @click.outside="open = false" class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10" role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1">
+                                    <div class="py-1" role="none">
+                                        <!-- Active: "bg-gray-100 text-gray-900", Not Active: "text-gray-700" -->
+                                        @foreach($availableModels as $modelKey => $modelDescription)
+                                            <button wire:click="setSpecificModel('{{ $modelKey }}')"
+                                                    @click="open = false"
+                                                    @class(['block w-full text-left px-4 py-2 text-sm', 'bg-gray-100 text-gray-900' => $modelKey == $currentModel->id, 'text-gray-700' => $modelKey != $currentModel->id])
                                                 role="menuitem" tabindex="-1" id="model-menu-item-{{ $modelKey }}">{{$modelDescription}}</button>
                                         @endforeach
                                     </div>
@@ -442,12 +454,9 @@
             window.Livewire.on('dataUpdated', data => {
                 let chartsData = JSON.parse(data);
                 Plotly.newPlot('dataPlot', chartsData[0], layout, {responsive: true});
-                Plotly.newPlot('weeklyCumulativeComparisonChart', chartsData[1], layout);
+                Plotly.newPlot('weeklyCumulativeComparisonChart', chartsData[1], layout2);
             })
         });
 
-
-
-        // Plotly.newPlot('dataPlot', data);
     </script>
 @endpush
