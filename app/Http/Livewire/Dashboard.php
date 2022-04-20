@@ -92,7 +92,7 @@ class Dashboard extends Component
         # initial date the model was trained for
         $this->dateBegin = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['date_begin'];
         # final date the model was trained for (last trained sample. beyond this date the model gives predictions)
-        $this->dateEnd = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['date_end'];
+        // $this->dateEnd = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['date_end'];
         # days beyond date_end that the model can gives predictions [dateEnd+windowSize]
         $windowSize = $this->currentModel->metadata['model_configs']['Artificial']['data_configs']['window_size'];
 
@@ -106,15 +106,15 @@ class Dashboard extends Component
         $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
 
         # data predicted by the model (full historical prediction)
-        $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/p971074907/path/'. $this->currentLocation .'/feature/date:'. $inputFeatures .'/begin/'. $this->predictDateBegin .'/end/'. $this->predictDateEnd . '/';
+        $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/p971074907/path/'. $this->currentLocation .'/feature/date:'. $inputFeatures .'/begin/'. $this->dateBegin .'/end/'. $this->predictDateEnd . '/';
 
         $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
             'metadata' => json_encode($this->currentModel->metadata)
         ]);
 
         # why averaging the output from the model if the model already output data in moving average format?
-        $this->predictedDates = collect($predictionResponse->json())->pluck('date')->skip(6)->values()->toArray();
-        $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->sliding(7)->map->average()->toArray();
+        $this->predictedDates = collect($predictionResponse->json())->pluck('date')->values()->toArray();
+        $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->toArray();
 
         $data = [
             [
