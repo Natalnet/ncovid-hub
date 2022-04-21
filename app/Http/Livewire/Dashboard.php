@@ -3,6 +3,7 @@
 namespace App\Http\Livewire;
 
 use App\Models\Model;
+use App\Services\DataStatsService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -53,6 +54,9 @@ class Dashboard extends Component
     public $predictedDates;
     public $predictedDeaths;
 
+    public $timeseriesChartData;
+    public $weeklyCumulativeComparisonChartData;
+
     public function mount()
     {
         $this->dateEnd = now()->subDays(2)->format('Y-m-d');
@@ -63,7 +67,11 @@ class Dashboard extends Component
 
     private function availableModels()
     {
-        $location = Str::of($this->currentLocation)->after(':')->upper();
+        if ($this->currentLocation !== 'brl') {
+            $location = Str::of($this->currentLocation)->after(':')->upper();
+        } else {
+            $location = 'BR';
+        }
         return Model::where('location', $location)->latest()->get()->flatMap(function ($model) {
             return [$model->id => $model->description];
         });
@@ -111,12 +119,12 @@ class Dashboard extends Component
         $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
             'metadata' => json_encode($this->currentModel->metadata)
         ]);
-
+      
         # why averaging the output from the model if the model already output data in moving average format?
         $this->predictedDates = collect($predictionResponse->json())->pluck('date')->values()->toArray();
         $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->toArray();
 
-        $data = [
+        $this->timeseriesChartData = [
             [
                 'x' => $this->dates,
                 'y' => $this->newDeaths,
@@ -139,7 +147,26 @@ class Dashboard extends Component
             ]
         ];
 
-        $this->emit('dataUpdated', json_encode($data));
+        $dataStats = new DataStatsService('p971074907', $this->currentLocation);
+        $weeklyCumulativeComparisonData = $dataStats->weeklyCumulativeComparison('newDeaths', now()->subDay()->toDateString());
+
+        $this->weeklyCumulativeComparisonChartData = [
+            [
+                'type' => 'bar',
+                'x' => [$weeklyCumulativeComparisonData['first']['cumulative'], $weeklyCumulativeComparisonData['last']['cumulative']],
+                'y' => [
+                    $weeklyCumulativeComparisonData['first']['start']->toFormattedDateString() . '<br>to ' . $weeklyCumulativeComparisonData['first']['end']->toFormattedDateString(),
+                    $weeklyCumulativeComparisonData['last']['start']->toFormattedDateString() . '<br>to ' . $weeklyCumulativeComparisonData['last']['end']->toFormattedDateString()
+                ],
+                'marker' => [
+                    'color' => 'rgba(202,66,59,1)',
+                ],
+                'name' => 'Cumulative new deaths in a week',
+                'orientation' => 'h'
+            ]
+        ];
+
+        $this->emit('dataUpdated', json_encode([$this->timeseriesChartData, $this->weeklyCumulativeComparisonChartData]));
     }
 
     public function setCurrentLocation($newLocation)

@@ -5,7 +5,7 @@
 </x-slot>
 
 <div class="py-12">
-    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 xl:max-w-full">
         <div class="grid grid-cols-3 gap-4">
             <div class="p-6">
                 <svg
@@ -383,6 +383,18 @@
                                             <button wire:click="setSpecificModel('{{ $modelKey }}')"
                                                     @click="open = false"
                                                     @class(['block w-full text-left px-4 py-2 text-sm', 'bg-gray-100 text-gray-900' => $modelKey == $currentModel->id, 'text-gray-700' => $modelKey != $currentModel->id])
+                                                    role="menuitem" tabindex="-1" id="model-menu-item-{{ $modelKey }}">{{$modelDescription}}</button>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <div x-show="open" @click.outside="open = false" class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10" role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1">
+                                    <div class="py-1" role="none">
+                                        <!-- Active: "bg-gray-100 text-gray-900", Not Active: "text-gray-700" -->
+                                        @foreach($availableModels as $modelKey => $modelDescription)
+                                            <button wire:click="setSpecificModel('{{ $modelKey }}')"
+                                                    @click="open = false"
+                                                    @class(['block w-full text-left px-4 py-2 text-sm', 'bg-gray-100 text-gray-900' => $modelKey == $currentModel->id, 'text-gray-700' => $modelKey != $currentModel->id])
                                                 role="menuitem" tabindex="-1" id="model-menu-item-{{ $modelKey }}">{{$modelDescription}}</button>
                                         @endforeach
                                     </div>
@@ -397,6 +409,14 @@
                             </div>
                             <div wire:loading.remove>
                                 <div id='dataPlot'></div>
+                                <div class="grid grid-cols-2 gap-2 p-4 mt-4">
+                                    <div>
+                                        <h4 class="text-base leading-6 font-medium text-gray-900">
+                                            Cumulative Deaths
+                                        </h4>
+                                        <div id="weeklyCumulativeComparisonChart"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -408,29 +428,6 @@
 
 @push('modals')
     <script>
-        var newDeathsTrace = {
-            x: @json($dates),
-            y: @json($newDeaths),
-            mode: 'lines',
-            line: {
-                color: 'rgb(201,59,59)',
-                width: 2
-            },
-            name: 'New Deaths (7-days moving average)'
-        };
-
-        var predictedDeathsTrace = {
-            x: @json($predictedDates),
-            y: @json($predictedDeaths),
-            mode: 'lines',
-            line: {
-                color: 'rgb(59,196,201)',
-                width: 2
-            },
-            name: 'Predicted New Deaths'
-        };
-        var data = [newDeathsTrace, predictedDeathsTrace]
-
         var layout = {
             showlegend: true,
             legend: {
@@ -438,18 +435,28 @@
             }
         };
 
+        var layout2 = {
+            showlegend: true,
+            legend: {
+                x: 0.029,
+                y: 10.238,
+            },
+            margin: {
+                l: 100
+            }
+        };
+
         document.addEventListener("DOMContentLoaded", () => {
-            console.log('imrege')
-            Plotly.newPlot('dataPlot', data, layout, {responsive: true});
+            console.log(@json($weeklyCumulativeComparisonChartData))
+            Plotly.newPlot('dataPlot', @json($timeseriesChartData), layout, {responsive: true});
+            Plotly.newPlot('weeklyCumulativeComparisonChart', @json($weeklyCumulativeComparisonChartData), layout2);
 
             window.Livewire.on('dataUpdated', data => {
-                console.log(JSON.parse(data));
-                Plotly.newPlot('dataPlot', JSON.parse(data), layout, {responsive: true});
+                let chartsData = JSON.parse(data);
+                Plotly.newPlot('dataPlot', chartsData[0], layout, {responsive: true});
+                Plotly.newPlot('weeklyCumulativeComparisonChart', chartsData[1], layout2);
             })
         });
 
-
-
-        // Plotly.newPlot('dataPlot', data);
     </script>
 @endpush
