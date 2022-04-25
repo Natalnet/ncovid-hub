@@ -380,9 +380,9 @@
                                     <div class="py-1" role="none">
                                         <!-- Active: "bg-gray-100 text-gray-900", Not Active: "text-gray-700" -->
                                         @foreach($availableModels as $modelKey => $modelDescription)
-                                            <button wire:click="setSpecificModel('{{ $modelKey }}')"
+                                            <button wire:click="toggleSpecificModel('{{ $modelKey }}')"
                                                     @click="open = false"
-                                                    @class(['block w-full text-left px-4 py-2 text-sm', 'bg-gray-100 text-gray-900' => $modelKey == $currentModel->id, 'text-gray-700' => $modelKey != $currentModel->id])
+                                                    @class(['block w-full text-left px-4 py-2 text-sm', 'bg-gray-100 text-gray-900' => isset($currentModels[$modelKey]), 'text-gray-700' => ! isset($currentModels[$modelKey])])
                                                     role="menuitem" tabindex="-1" id="model-menu-item-{{ $modelKey }}">{{$modelDescription}}</button>
                                         @endforeach
                                     </div>
@@ -392,9 +392,9 @@
                                     <div class="py-1" role="none">
                                         <!-- Active: "bg-gray-100 text-gray-900", Not Active: "text-gray-700" -->
                                         @foreach($availableModels as $modelKey => $modelDescription)
-                                            <button wire:click="setSpecificModel('{{ $modelKey }}')"
+                                            <button wire:click="toggleSpecificModel('{{ $modelKey }}')"
                                                     @click="open = false"
-                                                    @class(['block w-full text-left px-4 py-2 text-sm', 'bg-gray-100 text-gray-900' => $modelKey == $currentModel->id, 'text-gray-700' => $modelKey != $currentModel->id])
+                                                    @class(['block w-full text-left px-4 py-2 text-sm', 'bg-gray-100 text-gray-900' => isset($currentModels[$modelKey]), 'text-gray-700' => ! isset($currentModels[$modelKey])])
                                                 role="menuitem" tabindex="-1" id="model-menu-item-{{ $modelKey }}">{{$modelDescription}}</button>
                                         @endforeach
                                     </div>

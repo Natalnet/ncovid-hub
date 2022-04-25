@@ -11,7 +11,7 @@ use Livewire\Component;
 class Dashboard extends Component
 {
     public $currentLocation = 'brl:rn';
-    public $currentModel;
+    public $currentModels = [];
     public $dateBegin = '2020-04-01';
     public $dateEnd = '2022-02-28';
     public $predictDateBegin = '2020-04-08';
@@ -79,12 +79,17 @@ class Dashboard extends Component
 
     private function useFirstAvailableModel()
     {
-        $this->currentModel = Model::where('location', Str::of($this->currentLocation)->after(':')->upper())->latest()->first();
+        $model = Model::where('location', Str::of($this->currentLocation)->after(':')->upper())->latest()->first();
+        $this->currentModels[$model->id] = $model;
     }
 
-    public function setSpecificModel($modelId)
+    public function toggleSpecificModel($modelId)
     {
-        $this->currentModel = Model::findOrFail($modelId);
+        if (isset($this->currentModels[$modelId])) {
+            unset($this->currentModels[$modelId]);
+        } else {
+            $this->currentModels[$modelId] = Model::findOrFail($modelId);
+        }
         $this->loadData();
     }
 
@@ -92,16 +97,9 @@ class Dashboard extends Component
         $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
         $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths:newCases/begin/'. $this->predictDateBegin .'/end/'. $this->predictDateEnd . '/';
 
-        $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
-            'metadata' => json_encode($this->currentModel->metadata)
-        ]);
-
         // skip first 6 days in order to calculate 7-days moving average
         $this->dates = collect($dataResponse->json())->pluck('date')->skip(6)->values()->toArray();
         $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
-
-        $this->predictedDates = collect($predictionResponse->json())->pluck('date')->skip(6)->values()->toArray();
-        $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->sliding(7)->map->average()->toArray();
 
         $this->timeseriesChartData = [
             [
@@ -113,18 +111,28 @@ class Dashboard extends Component
                     'width' => 2
                 ],
                 'name' => 'New Deaths (7-days moving average)'
-            ],
-            [
+            ]
+        ];
+
+        foreach ($this->currentModels as $currentModel) {
+            $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
+                'metadata' => json_encode($currentModel['metadata'])
+            ]);
+
+            $this->predictedDates = collect($predictionResponse->json())->pluck('date')->skip(6)->values()->toArray();
+            $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->sliding(7)->map->average()->toArray();
+
+            $this->timeseriesChartData[] = [
                 'x' => $this->predictedDates,
                 'y' => $this->predictedDeaths,
                 'mode' => 'lines',
                 'line' => [
-                    'color' => 'rgb(59,196,201)',
+                    'color' => $this->randomColor(),
                     'width' => 2
                 ],
-                'name' => 'Predicted New Deaths'
-            ]
-        ];
+                'name' => 'Predicted New Deaths - ' . $currentModel['description']
+            ];
+        }
 
         $dataStats = new DataStatsService('p971074907', $this->currentLocation);
         $weeklyCumulativeComparisonData = $dataStats->weeklyCumulativeComparison('newDeaths', now()->subDay()->toDateString());
@@ -146,6 +154,16 @@ class Dashboard extends Component
         ];
 
         $this->emit('dataUpdated', json_encode([$this->timeseriesChartData, $this->weeklyCumulativeComparisonChartData]));
+    }
+
+    private function randomColor()
+    {
+        // format rgb(59,196,201)
+        foreach(array('r', 'g', 'b') as $color){
+            //Generate a random number between 0 and 255.
+            $rgbColor[$color] = mt_rand(0, 255);
+        }
+        return 'rgb(' . implode(",", $rgbColor) . ')';
     }
 
     public function setCurrentLocation($newLocation)
