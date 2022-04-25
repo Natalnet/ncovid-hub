@@ -44,9 +44,10 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $model->location }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $model->description }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $model->updated_at }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" x-data>
                                     <a href="{{ route('models.show', $model) }}" class="text-indigo-600 hover:text-indigo-900">View</a>
                                     <a href="{{ asset('storage/models/' . $model->file_name) }}" class="text-indigo-600 hover:text-indigo-900">Download</a>
+                                    <button type="button" x-on:click="confirm('Are you sure you want to delete this item?') && $wire.deleteModel('{{ $model->id }}')" class="text-red-600 hover:text-red-900">Delete</button>
                                 </td>
                             </tr>
                         @endforeach
