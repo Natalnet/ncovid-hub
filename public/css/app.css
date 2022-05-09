@@ -1254,6 +1254,9 @@ select {
 .h-20 {
 	height: 5rem;
 }
+.max-h-56 {
+	max-height: 14rem;
+}
 .min-h-screen {
 	min-height: 100vh;
 }
@@ -2009,6 +2012,10 @@ select {
 .hover\:text-indigo-900:hover {
 	--tw-text-opacity: 1;
 	color: rgba(49, 46, 129, var(--tw-text-opacity));
+}
+.hover\:text-red-900:hover {
+	--tw-text-opacity: 1;
+	color: rgba(127, 29, 29, var(--tw-text-opacity));
 }
 .hover\:text-red-200:hover {
 	--tw-text-opacity: 1;

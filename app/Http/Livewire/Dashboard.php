@@ -10,7 +10,7 @@ use Livewire\Component;
 
 class Dashboard extends Component
 {
-    public $currentLocation = 'brl:rn';
+    public $currentLocation = 'brl';
     public $currentModels = [];
     public $dateBegin = '2020-04-01';
     public $dateEnd = '2022-02-28';
@@ -65,21 +65,25 @@ class Dashboard extends Component
         $this->loadData();
     }
 
+    private function mapLocation($location)
+    {
+        if ($location !== 'brl') {
+            return Str::of($location)->after(':')->upper();
+        } else {
+            return 'BR';
+        }
+    }
+
     private function availableModels()
     {
-        if ($this->currentLocation !== 'brl') {
-            $location = Str::of($this->currentLocation)->after(':')->upper();
-        } else {
-            $location = 'BR';
-        }
-        return Model::where('location', $location)->latest()->get()->flatMap(function ($model) {
+        return Model::where('location', $this->mapLocation($this->currentLocation))->latest()->get()->flatMap(function ($model) {
             return [$model->id => $model->description];
         });
     }
 
     private function useFirstAvailableModel()
     {
-        $model = Model::where('location', Str::of($this->currentLocation)->after(':')->upper())->latest()->first();
+        $model = Model::where('location', $this->mapLocation($this->currentLocation))->latest()->first();
         $this->currentModels[$model->id] = $model;
     }
 
@@ -94,11 +98,14 @@ class Dashboard extends Component
     }
 
     protected function loadData() {
+        # data to plot
         $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
-        $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths:newCases/begin/'. $this->predictDateBegin .'/end/'. $this->predictDateEnd . '/';
 
-        // skip first 6 days in order to calculate 7-days moving average
+        # transforming data from daily to moving average
+        # clip first days since theres no moving average for them
         $this->dates = collect($dataResponse->json())->pluck('date')->skip(6)->values()->toArray();
+
+        # calculate moving average 7 days
         $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
 
         $this->timeseriesChartData = [
@@ -115,12 +122,34 @@ class Dashboard extends Component
         ];
 
         foreach ($this->currentModels as $currentModel) {
+            $metadata = $currentModel['metadata'];
+//            dd($metadata);
+            # repo the model was trained for
+            $repo = $metadata['model_configs']['Artificial']['data_configs']['repo'];
+            # data from where the model was trained for
+            $path = $metadata['model_configs']['Artificial']['data_configs']['path'];
+            # features the model accept as input
+            $inputFeatures = $metadata['model_configs']['Artificial']['data_configs']['input_features'];
+            # features the model returns as output. feature returned from $predictionEndpointUrl
+            $outputFeatures = $metadata['model_configs']['Artificial']['data_configs']['output_features'];
+
+            # initial date the model was trained for
+            $dateBegin = $metadata['model_configs']['Artificial']['data_configs']['date_begin'];
+            # final date the model was trained for (last trained sample. beyond this date the model gives predictions)
+            $dateEnd = $metadata['model_configs']['Artificial']['data_configs']['date_end'];
+            # days beyond date_end that the model can gives predictions [dateEnd+windowSize]
+            $windowSize = $metadata['model_configs']['Artificial']['data_configs']['window_size'];
+
+            # data predicted by the model (full historical prediction)
+            $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/'.$repo.'/path/'. $this->currentLocation .'/feature/date:'. $inputFeatures .'/begin/'. $dateBegin .'/end/'. $this->predictDateEnd . '/';
+
             $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
-                'metadata' => json_encode($currentModel['metadata'])
+                'metadata' => json_encode($metadata)
             ]);
 
-            $this->predictedDates = collect($predictionResponse->json())->pluck('date')->skip(6)->values()->toArray();
-            $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->sliding(7)->map->average()->toArray();
+            # why averaging the output from the model if the model already output data in moving average format?
+            $this->predictedDates = collect($predictionResponse->json())->pluck('date')->values()->toArray();
+            $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->toArray();
 
             $this->timeseriesChartData[] = [
                 'x' => $this->predictedDates,
@@ -169,6 +198,7 @@ class Dashboard extends Component
     public function setCurrentLocation($newLocation)
     {
         $this->currentLocation = $newLocation;
+        $this->currentModels = [];
         $this->useFirstAvailableModel();
 
         $this->loadData();
