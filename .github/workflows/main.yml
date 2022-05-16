@@ -29,5 +29,5 @@ jobs:
         port: ${{ secrets.SSH_PORT }}
         use_insecure_cipher: true
         script: |
-           cd "$HOST_REPO_PATH"
+           cd /data/docker/ncovid-hub
            git pull
