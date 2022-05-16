@@ -3,14 +3,15 @@
 namespace App\Http\Livewire;
 
 use App\Models\Model;
+use App\Services\DataStatsService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Livewire\Component;
 
 class Dashboard extends Component
 {
-    public $currentLocation = 'brl:rn';
-    public $currentModel;
+    public $currentLocation = 'brl';
+    public $currentModels = [];
     public $dateBegin = '2020-04-01';
     public $dateEnd = '2022-02-28';
     public $predictDateBegin = '2020-04-08';
@@ -53,6 +54,9 @@ class Dashboard extends Component
     public $predictedDates;
     public $predictedDeaths;
 
+    public $timeseriesChartData;
+    public $weeklyCumulativeComparisonChartData;
+
     public function mount()
     {
         $this->dateEnd = now()->subDays(2)->format('Y-m-d');
@@ -61,40 +65,50 @@ class Dashboard extends Component
         $this->loadData();
     }
 
+    private function mapLocation($location)
+    {
+        if ($location !== 'brl') {
+            return Str::of($location)->after(':')->upper();
+        } else {
+            return 'BR';
+        }
+    }
+
     private function availableModels()
     {
-        $location = Str::of($this->currentLocation)->after(':')->upper();
-        return Model::where('location', $location)->latest()->get()->flatMap(function ($model) {
+        return Model::where('location', $this->mapLocation($this->currentLocation))->latest()->get()->flatMap(function ($model) {
             return [$model->id => $model->description];
         });
     }
 
     private function useFirstAvailableModel()
     {
-        $this->currentModel = Model::where('location', Str::of($this->currentLocation)->after(':')->upper())->latest()->first();
+        $model = Model::where('location', $this->mapLocation($this->currentLocation))->latest()->first();
+        $this->currentModels[$model->id] = $model;
     }
 
-    public function setSpecificModel($modelId)
+    public function toggleSpecificModel($modelId)
     {
-        $this->currentModel = Model::findOrFail($modelId);
+        if (isset($this->currentModels[$modelId])) {
+            unset($this->currentModels[$modelId]);
+        } else {
+            $this->currentModels[$modelId] = Model::findOrFail($modelId);
+        }
         $this->loadData();
     }
 
     protected function loadData() {
+        # data to plot
         $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
-        $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths:newCases/begin/'. $this->predictDateBegin .'/end/'. $this->predictDateEnd . '/';
 
-        $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
-            'metadata' => json_encode($this->currentModel->metadata)
-        ]);
-
+        # transforming data from daily to moving average
+        # clip first days since theres no moving average for them
         $this->dates = collect($dataResponse->json())->pluck('date')->skip(6)->values()->toArray();
+
+        # calculate moving average 7 days
         $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
 
-        $this->predictedDates = collect($predictionResponse->json())->pluck('date')->skip(6)->values()->toArray();
-        $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->sliding(7)->map->average()->toArray();
-
-        $data = [
+        $this->timeseriesChartData = [
             [
                 'x' => $this->dates,
                 'y' => $this->newDeaths,
@@ -104,25 +118,87 @@ class Dashboard extends Component
                     'width' => 2
                 ],
                 'name' => 'New Deaths (7-days moving average)'
-            ],
-            [
+            ]
+        ];
+
+        foreach ($this->currentModels as $currentModel) {
+            $metadata = $currentModel['metadata'];
+//            dd($metadata);
+            # repo the model was trained for
+            $repo = $metadata['model_configs']['Artificial']['data_configs']['repo'];
+            # data from where the model was trained for
+            $path = $metadata['model_configs']['Artificial']['data_configs']['path'];
+            # features the model accept as input
+            $inputFeatures = $metadata['model_configs']['Artificial']['data_configs']['input_features'];
+            # features the model returns as output. feature returned from $predictionEndpointUrl
+            $outputFeatures = $metadata['model_configs']['Artificial']['data_configs']['output_features'];
+
+            # initial date the model was trained for
+            $dateBegin = $metadata['model_configs']['Artificial']['data_configs']['date_begin'];
+            # final date the model was trained for (last trained sample. beyond this date the model gives predictions)
+            $dateEnd = $metadata['model_configs']['Artificial']['data_configs']['date_end'];
+            # days beyond date_end that the model can gives predictions [dateEnd+windowSize]
+            $windowSize = $metadata['model_configs']['Artificial']['data_configs']['window_size'];
+
+            # data predicted by the model (full historical prediction)
+            $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/'.$repo.'/path/'. $this->currentLocation .'/feature/date:'. $inputFeatures .'/begin/'. $dateBegin .'/end/'. $this->predictDateEnd . '/';
+
+            $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
+                'metadata' => json_encode($metadata)
+            ]);
+
+            # why averaging the output from the model if the model already output data in moving average format?
+            $this->predictedDates = collect($predictionResponse->json())->pluck('date')->values()->toArray();
+            $this->predictedDeaths = collect($predictionResponse->json())->pluck('prediction')->toArray();
+
+            $this->timeseriesChartData[] = [
                 'x' => $this->predictedDates,
                 'y' => $this->predictedDeaths,
                 'mode' => 'lines',
                 'line' => [
-                    'color' => 'rgb(59,196,201)',
+                    'color' => $this->randomColor(),
                     'width' => 2
                 ],
-                'name' => 'Predicted New Deaths'
+                'name' => 'Predicted New Deaths - ' . $currentModel['description']
+            ];
+        }
+
+        $dataStats = new DataStatsService('p971074907', $this->currentLocation);
+        $weeklyCumulativeComparisonData = $dataStats->weeklyCumulativeComparison('newDeaths', now()->subDay()->toDateString());
+
+        $this->weeklyCumulativeComparisonChartData = [
+            [
+                'type' => 'bar',
+                'x' => [$weeklyCumulativeComparisonData['first']['cumulative'], $weeklyCumulativeComparisonData['last']['cumulative']],
+                'y' => [
+                    $weeklyCumulativeComparisonData['first']['start']->toFormattedDateString() . '<br>to ' . $weeklyCumulativeComparisonData['first']['end']->toFormattedDateString(),
+                    $weeklyCumulativeComparisonData['last']['start']->toFormattedDateString() . '<br>to ' . $weeklyCumulativeComparisonData['last']['end']->toFormattedDateString()
+                ],
+                'marker' => [
+                    'color' => 'rgba(202,66,59,1)',
+                ],
+                'name' => 'Cumulative new deaths in a week',
+                'orientation' => 'h'
             ]
         ];
 
-        $this->emit('dataUpdated', json_encode($data));
+        $this->emit('dataUpdated', json_encode([$this->timeseriesChartData, $this->weeklyCumulativeComparisonChartData]));
+    }
+
+    private function randomColor()
+    {
+        // format rgb(59,196,201)
+        foreach(array('r', 'g', 'b') as $color){
+            //Generate a random number between 0 and 255.
+            $rgbColor[$color] = mt_rand(0, 255);
+        }
+        return 'rgb(' . implode(",", $rgbColor) . ')';
     }
 
     public function setCurrentLocation($newLocation)
     {
         $this->currentLocation = $newLocation;
+        $this->currentModels = [];
         $this->useFirstAvailableModel();
 
         $this->loadData();
