@@ -117,7 +117,7 @@ class Dashboard extends Component
                     'color' => 'rgb(201,59,59)',
                     'width' => 2
                 ],
-                'name' => 'New Deaths (7-days moving average)'
+                'name' => 'Deaths (7-days moving average)'
             ]
         ];
 
@@ -159,7 +159,7 @@ class Dashboard extends Component
                     'color' => $this->randomColor(),
                     'width' => 2
                 ],
-                'name' => 'Predicted New Deaths - ' . $currentModel['description']
+                'name' => 'Predicted Deaths - ' . $currentModel['description']
             ];
         }
 
@@ -177,7 +177,7 @@ class Dashboard extends Component
                 'marker' => [
                     'color' => 'rgba(202,66,59,1)',
                 ],
-                'name' => 'Cumulative new deaths in a week',
+                'name' => 'Cumulative deaths in a week',
                 'orientation' => 'h'
             ]
         ];
