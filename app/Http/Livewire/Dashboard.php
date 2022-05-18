@@ -98,28 +98,6 @@ class Dashboard extends Component
     }
 
     protected function loadData() {
-        # data to plot
-        $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
-
-        # transforming data from daily to moving average
-        # clip first days since theres no moving average for them
-        $this->dates = collect($dataResponse->json())->pluck('date')->skip(6)->values()->toArray();
-
-        # calculate moving average 7 days
-        $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
-
-        $this->timeseriesChartData = [
-            [
-                'x' => $this->dates,
-                'y' => $this->newDeaths,
-                'mode' => 'lines',
-                'line' => [
-                    'color' => 'rgb(201,59,59)',
-                    'width' => 2
-                ],
-                'name' => 'Deaths (7-days moving average)'
-            ]
-        ];
 
         foreach ($this->currentModels as $currentModel) {
             $metadata = $currentModel['metadata'];
@@ -139,6 +117,29 @@ class Dashboard extends Component
             $dateEnd = $metadata['model_configs']['Artificial']['data_configs']['date_end'];
             # days beyond date_end that the model can gives predictions [dateEnd+windowSize]
             $windowSize = $metadata['model_configs']['Artificial']['data_configs']['window_size'];
+
+            # data to plot
+            $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
+
+            # transforming data from daily to moving average
+            # clip first days since theres no moving average for them
+            $this->dates = collect($dataResponse->json())->pluck('date')->skip(6)->values()->toArray();
+
+            # calculate moving average 7 days
+            $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
+
+            $this->timeseriesChartData = [
+                [
+                    'x' => $this->dates,
+                    'y' => $this->newDeaths,
+                    'mode' => 'lines',
+                    'line' => [
+                        'color' => 'rgb(201,59,59)',
+                        'width' => 2
+                    ],
+                    'name' => 'Deaths (7-days moving average)'
+                ]
+            ];
 
             # data predicted by the model (full historical prediction)
             $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/'.$repo.'/path/'. $this->currentLocation .'/feature/date:'. $inputFeatures .'/begin/'. $dateBegin .'/end/'. $this->predictDateEnd . '/';
