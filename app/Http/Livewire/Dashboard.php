@@ -101,7 +101,6 @@ class Dashboard extends Component
 
         foreach ($this->currentModels as $currentModel) {
             $metadata = $currentModel['metadata'];
-//            dd($metadata);
             # repo the model was trained for
             $repo = $metadata['model_configs']['Artificial']['data_configs']['repo'];
             # data from where the model was trained for
@@ -117,16 +116,18 @@ class Dashboard extends Component
             $dateEnd = $metadata['model_configs']['Artificial']['data_configs']['date_end'];
             # days beyond date_end that the model can gives predictions [dateEnd+windowSize]
             $windowSize = $metadata['model_configs']['Artificial']['data_configs']['window_size'];
+            # TODO get mavg_windowSize from metadata
+            $mavg_windowSize = 7;
 
             # data to plot
-            $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
+            $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/features/date:'. $outputFeatures. '/window-size/' . $mavg_windowSize . '/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
 
             # transforming data from daily to moving average
             # clip first days since theres no moving average for them
-            $this->dates = collect($dataResponse->json())->pluck('date')->skip(6)->values()->toArray();
+            $this->dates = collect($dataResponse->json())->pluck('date')->toArray();
 
             # calculate moving average 7 days
-            $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
+            $this->newDeaths = collect($dataResponse->json())->pluck($outputFeatures.'_mavg')->toArray();
 
             $this->timeseriesChartData = [
                 [
