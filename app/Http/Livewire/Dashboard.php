@@ -59,7 +59,8 @@ class Dashboard extends Component
 
     public function mount()
     {
-        $this->dateEnd = now()->subDays(2)->format('Y-m-d');
+        $this->dateEnd = now()->format('Y-m-d');
+        # TODO: addDays argument should be value output_window_size from metadata
         $this->predictDateEnd = now()->addDays(7)->format('Y-m-d');
         $this->useFirstAvailableModel();
         $this->loadData();
@@ -143,7 +144,7 @@ class Dashboard extends Component
             ];
 
             # data predicted by the model (full historical prediction)
-            $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/'.$repo.'/path/'. $this->currentLocation .'/feature/date:'. $inputFeatures .'/begin/'. $dateBegin .'/end/'. $this->predictDateEnd . '/';
+            $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictortest/lstm/repo/'.$repo.'/path/'. $this->currentLocation .'/feature/date:'. $inputFeatures .'/begin/'. $this->dateBegin .'/end/'. $this->predictDateEnd . '/';
 
             $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
                 'metadata' => json_encode($metadata)
