@@ -59,7 +59,8 @@ class Dashboard extends Component
 
     public function mount()
     {
-        $this->dateEnd = now()->subDays(2)->format('Y-m-d');
+        $this->dateEnd = now()->format('Y-m-d');
+        # TODO: addDays argument should be value output_window_size from metadata
         $this->predictDateEnd = now()->addDays(7)->format('Y-m-d');
         $this->useFirstAvailableModel();
         $this->loadData();
@@ -98,32 +99,9 @@ class Dashboard extends Component
     }
 
     protected function loadData() {
-        # data to plot
-        $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/feature/date:newDeaths/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
-
-        # transforming data from daily to moving average
-        # clip first days since theres no moving average for them
-        $this->dates = collect($dataResponse->json())->pluck('date')->skip(6)->values()->toArray();
-
-        # calculate moving average 7 days
-        $this->newDeaths = collect($dataResponse->json())->pluck('newDeaths')->sliding(7)->map->average()->toArray();
-
-        $this->timeseriesChartData = [
-            [
-                'x' => $this->dates,
-                'y' => $this->newDeaths,
-                'mode' => 'lines',
-                'line' => [
-                    'color' => 'rgb(201,59,59)',
-                    'width' => 2
-                ],
-                'name' => 'Deaths (7-days moving average)'
-            ]
-        ];
 
         foreach ($this->currentModels as $currentModel) {
             $metadata = $currentModel['metadata'];
-//            dd($metadata);
             # repo the model was trained for
             $repo = $metadata['model_configs']['Artificial']['data_configs']['repo'];
             # data from where the model was trained for
@@ -139,9 +117,34 @@ class Dashboard extends Component
             $dateEnd = $metadata['model_configs']['Artificial']['data_configs']['date_end'];
             # days beyond date_end that the model can gives predictions [dateEnd+windowSize]
             $windowSize = $metadata['model_configs']['Artificial']['data_configs']['window_size'];
+            # TODO get mavg_windowSize from metadata
+            $mavg_windowSize = 7;
+
+            # data to plot
+            $dataResponse = Http::get('http://ncovid.natalnet.br/datamanager/repo/p971074907/path/'. $this->currentLocation .'/features/date:'. $outputFeatures. '/window-size/' . $mavg_windowSize . '/begin/'. $this->dateBegin .'/end/'. $this->dateEnd .'/as-json');
+
+            # transforming data from daily to moving average
+            # clip first days since theres no moving average for them
+            $this->dates = collect($dataResponse->json())->pluck('date')->toArray();
+
+            # calculate moving average 7 days
+            $this->newDeaths = collect($dataResponse->json())->pluck($outputFeatures.'_mavg')->toArray();
+
+            $this->timeseriesChartData = [
+                [
+                    'x' => $this->dates,
+                    'y' => $this->newDeaths,
+                    'mode' => 'lines',
+                    'line' => [
+                        'color' => 'rgb(201,59,59)',
+                        'width' => 2
+                    ],
+                    'name' => 'Deaths (7-days moving average)'
+                ]
+            ];
 
             # data predicted by the model (full historical prediction)
-            $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictor/lstm/repo/'.$repo.'/path/'. $this->currentLocation .'/feature/date:'. $inputFeatures .'/begin/'. $dateBegin .'/end/'. $this->predictDateEnd . '/';
+            $predictionEndpointUrl = 'http://ncovid.natalnet.br/predictortest/lstm/repo/'.$repo.'/path/'. $this->currentLocation .'/feature/date:'. $inputFeatures .'/begin/'. $this->dateBegin .'/end/'. $this->predictDateEnd . '/';
 
             $predictionResponse = Http::asForm()->post($predictionEndpointUrl, [
                 'metadata' => json_encode($metadata)
