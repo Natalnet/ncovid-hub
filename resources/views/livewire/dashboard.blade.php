@@ -369,7 +369,10 @@
                             Use the map to select data from a specific state.
                         </p>
                         <div class="flex justify-between">
-                            <p>You are viewing data for {{ $locations[$currentLocation] }}</p>
+                            <div>
+                                <p>You are viewing data for {{ $locations[$currentLocation] }}</p>
+                                <p>Latest MAPE error is {{ number_format(((float) array_pop($mapeChartData[0]['y'])) * 100, 2) }}%</p>
+                            </div>
                             <div class="flex justify-end">
                                 <div class="relative inline-block text-left mr-3" x-data="{ open: false }">
                                     <div>
@@ -454,6 +457,12 @@
                                         </h4>
                                         <div id="weeklyCumulativeComparisonChart"></div>
                                     </div>
+                                    <div>
+                                        <h4 class="text-base leading-6 font-medium text-gray-900">
+                                            Deployment Performance (MAPE)
+                                        </h4>
+                                        <div id="mapeChart"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -488,11 +497,13 @@
             console.log(@json($weeklyCumulativeComparisonChartData))
             Plotly.newPlot('dataPlot', @json($timeseriesChartData), layout, {responsive: true});
             Plotly.newPlot('weeklyCumulativeComparisonChart', @json($weeklyCumulativeComparisonChartData), layout2);
+            Plotly.newPlot('mapeChart', @json($mapeChartData), layout, {responsive: true});
 
             window.Livewire.on('dataUpdated', data => {
                 let chartsData = JSON.parse(data);
                 Plotly.newPlot('dataPlot', chartsData[0], layout, {responsive: true});
                 Plotly.newPlot('weeklyCumulativeComparisonChart', chartsData[1], layout2);
+                Plotly.newPlot('mapeChart', chartsData[2], layout, {responsive: true});
             })
         });
 

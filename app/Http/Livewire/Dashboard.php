@@ -4,6 +4,8 @@ namespace App\Http\Livewire;
 
 use App\Models\Model;
 use App\Services\DataStatsService;
+use App\Services\EvaluationService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -56,6 +58,7 @@ class Dashboard extends Component
 
     public $timeseriesChartData;
     public $weeklyCumulativeComparisonChartData;
+    public $mapeChartData;
 
     public function mount()
     {
@@ -166,6 +169,24 @@ class Dashboard extends Component
             ];
         }
 
+        $evalOriginal = array_combine($this->dates, $this->newDeaths);
+        $evalPredicted = array_combine($this->predictedDates, $this->predictedDeaths);
+
+        $mape = EvaluationService::mape($evalOriginal, $evalPredicted, array_values($this->currentModels)[0]->created_at);
+
+        $this->mapeChartData = [
+            [
+                'x' => array_keys($mape),
+                'y' => array_values($mape),
+                'mode' => 'lines',
+                'line' => [
+                    'color' => 'rgb(201,59,59)',
+                    'width' => 2
+                ],
+                'name' => 'MAPE'
+            ]
+        ];
+
         $dataStats = new DataStatsService('p971074907', $this->currentLocation);
         $weeklyCumulativeComparisonData = $dataStats->weeklyCumulativeComparison('newDeaths', now()->subDay()->toDateString());
 
@@ -185,7 +206,7 @@ class Dashboard extends Component
             ]
         ];
 
-        $this->emit('dataUpdated', json_encode([$this->timeseriesChartData, $this->weeklyCumulativeComparisonChartData]));
+        $this->emit('dataUpdated', json_encode([$this->timeseriesChartData, $this->weeklyCumulativeComparisonChartData, $this->mapeChartData]));
     }
 
     private function randomColor()
